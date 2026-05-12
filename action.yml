@@ -48,12 +48,13 @@ runs:
 
         # Read and update version in vsixmanifest
         text = open(manifest, encoding="utf-8").read()
-        m = re.search(r'(?<=\bVersion=")[^"]+(?=")', text)
+        # Target the Version attribute inside the <Identity> element specifically
+        m = re.search(r'(<Identity\b[^>]*\bVersion=")([^"]+)(")', text)
         if not m:
-            print("::error::Could not find Version attribute in manifest", file=sys.stderr)
+            print("::error::Could not find Identity Version attribute in manifest", file=sys.stderr)
             sys.exit(1)
 
-        current = m.group(0)
+        current = m.group(2)
         parts = current.split(".")
         while len(parts) < 3:
             parts.append("0")
@@ -64,7 +65,7 @@ runs:
             parts[2] = build_number
             new_version = ".".join(parts[:3])
 
-        text = text[:m.start()] + new_version + text[m.end():]
+        text = text[:m.start(2)] + new_version + text[m.end(2):]
         open(manifest, "w", encoding="utf-8").write(text)
         print(f"Version set to {new_version}")
 
