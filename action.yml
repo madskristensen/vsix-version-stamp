@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
 name: 'Set VSIX Version'
 description: 'Increments the VSIX build version or sets it to a specified version. Works on Linux and Windows.'
 branding:

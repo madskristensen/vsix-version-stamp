@@ -9,7 +9,7 @@ Works on **Linux and Windows** runners. Uses Python 3 — no extra tools require
 ```yaml
 - name: Increment VSIX version
   id: vsix_version
-  uses: madskristensen/vsix-version-stamp@v1
+  uses: madskristensen/vsix-version-stamp@v2
   with:
     manifest-file: src\MyExtension\source.extension.vsixmanifest
     vsix-token-source-file: src\MyExtension\source.extension.cs
@@ -41,7 +41,7 @@ jobs:
 
       - name: Increment VSIX version
         id: vsix_version
-        uses: madskristensen/vsix-version-stamp@v1
+        uses: madskristensen/vsix-version-stamp@v2
         with:
           manifest-file: src/MyExtension/source.extension.vsixmanifest
           vsix-token-source-file: src/MyExtension/source.extension.cs
