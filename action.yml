@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: 'Set VSIX Version'
+description: 'Increments the VSIX build version or sets it to a specified version. Works on Linux and Windows.'
+branding:
+  icon: copy
+  color: purple
+
+inputs:
+  manifest-file:
+    description: 'Path to source.extension.vsixmanifest'
+    required: true
+  vsix-token-source-file:
+    description: 'Path to source.extension.cs for version token replacement'
+    required: false
+    default: ''
+  version-number:
+    description: 'Explicit version to set (e.g. 2.1.0). If omitted, the build number is stamped into the third segment.'
+    required: false
+    default: ''
+  build-number:
+    description: 'Build number to stamp into the third version segment'
+    required: false
+    default: ${{ github.run_number }}
+
+outputs:
+  version-number:
+    description: 'The resulting version number'
+    value: ${{ steps.stamp.outputs.version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Stamp version
+      id: stamp
+      shell: python3 {0}
+      env:
+        MANIFEST_FILE: ${{ inputs.manifest-file }}
+        TOKEN_FILE: ${{ inputs.vsix-token-source-file }}
+        VERSION_NUMBER: ${{ inputs.version-number }}
+        BUILD_NUMBER: ${{ inputs.build-number }}
+      run: |
+        import os, re, sys
+
+        manifest = os.environ["MANIFEST_FILE"]
+        token_file = os.environ.get("TOKEN_FILE", "").strip()
+        version_number = os.environ.get("VERSION_NUMBER", "").strip()
+        build_number = os.environ.get("BUILD_NUMBER", "").strip()
+
+        # Read and update version in vsixmanifest
+        text = open(manifest, encoding="utf-8").read()
+        m = re.search(r'(?<=\bVersion=")[^"]+(?=")', text)
+        if not m:
+            print("::error::Could not find Version attribute in manifest", file=sys.stderr)
+            sys.exit(1)
+
+        current = m.group(0)
+        parts = current.split(".")
+        while len(parts) < 3:
+            parts.append("0")
+
+        if version_number:
+            new_version = version_number
+        else:
+            parts[2] = build_number
+            new_version = ".".join(parts[:3])
+
+        text = text[:m.start()] + new_version + text[m.end():]
+        open(manifest, "w", encoding="utf-8").write(text)
+        print(f"Version set to {new_version}")
+
+        # Write to GITHUB_OUTPUT
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"version={new_version}\n")
+
+        # Token replacement in source.extension.cs
+        if token_file:
+            cs = open(token_file, encoding="utf-8").read()
+            cs = re.sub(r'(?<=\bVersion = ")[^"]+(?=")', new_version, cs)
+            open(token_file, "w", encoding="utf-8").write(cs)
+            print(f"Token replaced in {token_file}")
