@@ -46,6 +46,15 @@ runs:
         version_number = os.environ.get("VERSION_NUMBER", "").strip()
         build_number = os.environ.get("BUILD_NUMBER", "").strip()
 
+        # Validate inputs up front so users get a clear error instead of an
+        # unhelpful Python traceback.
+        if not os.path.isfile(manifest):
+            print(f"::error::manifest-file not found: {manifest}", file=sys.stderr)
+            sys.exit(1)
+        if token_file and not os.path.isfile(token_file):
+            print(f"::error::vsix-token-source-file not found: {token_file}", file=sys.stderr)
+            sys.exit(1)
+
         # Read and update version in vsixmanifest
         text = open(manifest, encoding="utf-8").read()
         # Target the Version attribute inside the <Identity> element specifically
@@ -67,15 +76,35 @@ runs:
 
         text = text[:m.start(2)] + new_version + text[m.end(2):]
         open(manifest, "w", encoding="utf-8").write(text)
-        print(f"Version set to {new_version}")
+        print(f"Stamped {manifest}: {current} -> {new_version}")
 
         # Write to GITHUB_OUTPUT
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"version={new_version}\n")
 
         # Token replacement in source.extension.cs
+        token_replaced = False
         if token_file:
             cs = open(token_file, encoding="utf-8").read()
-            cs = re.sub(r'(?<=\bVersion = ")[^"]+(?=")', new_version, cs)
-            open(token_file, "w", encoding="utf-8").write(cs)
-            print(f"Token replaced in {token_file}")
+            cs_new, count = re.subn(r'(?<=\bVersion = ")[^"]+(?=")', new_version, cs)
+            if count == 0:
+                print(f"::warning::No 'Version = \"...\"' token found in {token_file}; file left unchanged")
+            else:
+                open(token_file, "w", encoding="utf-8").write(cs_new)
+                token_replaced = True
+                print(f"Replaced version token in {token_file} ({count} occurrence(s))")
+
+        # Best-effort step summary; never fail the step if writing fails.
+        summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "")
+        if summary_path:
+            try:
+                with open(summary_path, "a", encoding="utf-8") as f:
+                    f.write("# VSIX version stamped\n\n")
+                    f.write(f"`{current}` -> **`{new_version}`**\n\n")
+                    f.write("<details><summary>Files updated</summary>\n\n")
+                    f.write(f"- `{manifest}`\n")
+                    if token_replaced:
+                        f.write(f"- `{token_file}`\n")
+                    f.write("\n</details>\n")
+            except Exception as e:
+                print(f"::warning::Failed to write step summary: {e}")
