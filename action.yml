@@ -99,7 +99,7 @@ runs:
         if summary_path:
             try:
                 with open(summary_path, "a", encoding="utf-8") as f:
-                    f.write("# VSIX version stamped\n\n")
+                    f.write("## VSIX version stamped\n\n")
                     f.write(f"`{current}` -> **`{new_version}`**\n\n")
                     f.write("<details><summary>Files updated</summary>\n\n")
                     f.write(f"- `{manifest}`\n")
